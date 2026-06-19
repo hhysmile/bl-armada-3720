@@ -21,18 +21,20 @@ jobs:
 
     - name: Compile Code
       run: |
-        # 自动获取 arm-linux-gnueabi- 的绝对路径前缀
-        CM3_PATH=$(which arm-linux-gnueabi-gcc | sed 's/gcc$//')
+        # 1. 显式定义 32位 编译器的绝对路径前缀
+        CM3_PATH="/usr/bin/arm-linux-gnueabi-"
         
+        # 2. 设置全局环境变量（作为双重保险）
         export CROSS_COMPILE=aarch64-linux-gnu-
         export CROSS_CM3=$CM3_PATH
         
-        echo "Using CROSS_CM3=$CROSS_CM3"
-        
+        # 3. 执行编译
+        # 核心改动：把 CROSS_COMPILE 和 CROSS_CM3 直接当做参数传给 make 命令
         if [ -f "Makefile" ]; then
-          # 尝试匹配 espressobin 的默认配置，如果没有则用默认配置
-          make mvebu_espressobin-88f3720_defconfig || make defconfig || true
-          make -j$(nproc)
+          make mvebu_espressobin-88f3720_defconfig CROSS_COMPILE=aarch64-linux-gnu- CROSS_CM3=$CM3_PATH || make defconfig CROSS_COMPILE=aarch64-linux-gnu- CROSS_CM3=$CM3_PATH || true
+          
+          # 在最终编译时强制透传这两个变量
+          make -j$(nproc) CROSS_COMPILE=aarch64-linux-gnu- CROSS_CM3=$CM3_PATH
         fi
 
     - name: Find and Collect Bin Files
