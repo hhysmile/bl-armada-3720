@@ -17,30 +17,32 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y git make gcc bison flex libssl-dev device-tree-compiler swig libpython3-dev bc
-        sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+        # 安装官方推荐的 32位 编译器
+        sudo apt-get install -y gcc-arm-linux-gnueabi gcc-aarch64-linux-gnu
+
+    - name: Set Permanent Environment Variables
+      run: |
+        # 使用 GitHub Actions 官方最高级别的全局环境变量注入，穿透一切子 make
+        echo "CROSS_COMPILE=aarch64-linux-gnu-" >> $GITHUB_ENV
+        echo "CROSS_CM3=/usr/bin/arm-linux-gnueabi-" >> $GITHUB_ENV
 
     - name: Compile Code
       run: |
-        # 1. 显式定义 32位 编译器的绝对路径前缀
-        CM3_PATH="/usr/bin/arm-linux-gnueabi-"
-        
-        # 2. 设置全局环境变量（作为双重保险）
+        # 双重保险：在当前 shell 再次声明
         export CROSS_COMPILE=aarch64-linux-gnu-
-        export CROSS_CM3=$CM3_PATH
+        export CROSS_CM3=/usr/bin/arm-linux-gnueabi-
         
-        # 3. 执行编译
-        # 核心改动：把 CROSS_COMPILE 和 CROSS_CM3 直接当做参数传给 make 命令
         if [ -f "Makefile" ]; then
-          make mvebu_espressobin-88f3720_defconfig CROSS_COMPILE=aarch64-linux-gnu- CROSS_CM3=$CM3_PATH || make defconfig CROSS_COMPILE=aarch64-linux-gnu- CROSS_CM3=$CM3_PATH || true
+          # 1. 尝试生成配置
+          make mvebu_espressobin-88f3720_defconfig || make defconfig || true
           
-          # 在最终编译时强制透传这两个变量
-          make -j$(nproc) CROSS_COMPILE=aarch64-linux-gnu- CROSS_CM3=$CM3_PATH
+          # 2. 编译，并在命令行、环境变量里三重强制透传
+          make -j$(nproc) CROSS_COMPILE=aarch64-linux-gnu- CROSS_CM3=/usr/bin/arm-linux-gnueabi-
         fi
 
     - name: Find and Collect Bin Files
       run: |
         mkdir output
-        # 自动搜寻编译出来的所有 .bin 文件（包括 flash-image.bin 等）
         find . -name "*.bin" -exec cp {} ./output/ \;
         ls -la ./output/
 
