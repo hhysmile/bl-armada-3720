@@ -35,7 +35,7 @@ jobs:
           
           # 执行编译，这里以生成全功能包含 WTMI 的 flash-image.bin 为例
           # 如果你的仓库只是纯 U-Boot，可以直接执行 make -j$(nproc)
-          make -j$(nproc)
+          make PLAT=a3700 DEBUG=0 WTP=./a3700-utils/ allfip || make -j$(nproc)
         fi
 
     - name: Find and Collect Bin Files
@@ -46,7 +46,7 @@ jobs:
         ls -la ./output/
 
     - name: Upload Bin Artifact
-      uses: actions/actions-artifact
+      uses: actions/actions-artifact@v3
       with:
         name: compiled-bin-files
         path: ./output/
