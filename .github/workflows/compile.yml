@@ -17,23 +17,24 @@ jobs:
       run: |
         sudo apt-get update
         sudo apt-get install -y git make gcc bison flex libssl-dev device-tree-compiler swig libpython3-dev bc
-        # 安装 64位 和 32位 交叉编译器
+        # 安装官方默认的 64位 和 32位 交叉编译器
         sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
 
-    - name: Create Toolchain Alias (Fix Hardcoded CROSS_CM3)
+    - name: Link Full Toolchain (Fix Hardcoded CROSS_CM3)
       run: |
-        # 核心修复：因为仓库源码硬编码了 arm-none-linux-gnueabihf-
-        # 我们在系统 /usr/bin 下为现有的 arm-linux-gnueabi- 建立对应名字的软链接
-        sudo ln -s /usr/bin/arm-linux-gnueabi-gcc /usr/bin/arm-none-linux-gnueabihf-gcc
-        sudo ln -s /usr/bin/arm-linux-gnueabi-ld /usr/bin/arm-none-linux-gnueabihf-ld
-        sudo ln -s /usr/bin/arm-linux-gnueabi-objcopy /usr/bin/arm-none-linux-gnueabihf-objcopy
+        # 批量为 32位 工具链创建全套软链接，确保底层的 wtmi 和 fuse 编译脚本在调用任何命令时都不会漏空
+        for cmd in gcc g++ ld as objcopy objdump strip ar ranlib size nm cppg; do
+          if [ -f "/usr/bin/arm-linux-gnueabi-$cmd" ]; then
+            sudo ln -sf "/usr/bin/arm-linux-gnueabi-$cmd" "/usr/bin/arm-none-linux-gnueabihf-$cmd"
+          fi
+        done
         
-        # 测试软链接是否生效
+        # 验证软链接是否全面生效
         arm-none-linux-gnueabihf-gcc --version
 
     - name: Compile Code
       run: |
-        # 直接执行主 Makefile，它会自动处理 catdrive.config 并调用后续编译
+        # 直接运行主 Makefile
         if [ -f "Makefile" ]; then
           make -j$(nproc)
         fi
@@ -41,7 +42,7 @@ jobs:
     - name: Find and Collect Bin Files
       run: |
         mkdir output
-        # 寻找最终生成的 flash-image.bin 或 fip.bin 并复制出来
+        # 寻找最终生成的镜像产物并复制
         find . -name "*.bin" -exec cp {} ./output/ \;
         ls -la ./output/
 
