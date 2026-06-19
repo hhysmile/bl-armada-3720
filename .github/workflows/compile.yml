@@ -1,0 +1,52 @@
+name: Online Compile Armada 3720 Bin
+
+on:
+  workflow_dispatch: # 允许你手动点击按钮触发编译
+
+jobs:
+  build:
+    runs-on: ubuntu-22.04
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v4
+      with:
+        submodules: 'recursive' # 自动拉取可能存在的子模块
+
+    - name: Install dependencies and cross-compilers
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y git make gcc bison flex libssl-dev device-tree-compiler swig libpython3-dev bc
+        # 安装 64位 和 32位 交叉编译器
+        sudo apt-get install -y gcc-aarch64-linux-gnu gcc-arm-linux-gnueabi
+
+    - name: Compile Code
+      run: |
+        # 1. 设置 64位 交叉编译器环境变量
+        export CROSS_COMPILE=aarch64-linux-gnu-
+        
+        # 2. 【核心步骤：配置与编译】
+        # 注意：这里需要根据你仓库的具体代码结构调整。以下为标准通用编译命令：
+        # 如果是标准的 U-Boot/TF-A 混编，先生成配置，再 make
+        # 假设这里使用的是标准的 a3700 默认配置（请根据实际板子修改，如 mvebu_espressobin-88f3720_defconfig）
+        if [ -f "Makefile" ]; then
+          # 尝试查找默认配置，如果没有可以去掉此行直接 make
+          make defconfig || true 
+          
+          # 执行编译，这里以生成全功能包含 WTMI 的 flash-image.bin 为例
+          # 如果你的仓库只是纯 U-Boot，可以直接执行 make -j$(nproc)
+          make PLAT=a3700 DEBUG=0 WTP=./a3700-utils/ allfip || make -j$(nproc)
+        fi
+
+    - name: Find and Collect Bin Files
+      run: |
+        mkdir output
+        # 自动搜寻编译出来的所有 .bin 文件并移动到 output 目录
+        find . -name "*.bin" -exec cp {} ./output/ \;
+        ls -la ./output/
+
+    - name: Upload Bin Artifact
+      uses: actions/actions-artifact@v3
+      with:
+        name: compiled-bin-files
+        path: ./output/
