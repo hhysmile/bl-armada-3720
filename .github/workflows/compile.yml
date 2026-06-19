@@ -31,11 +31,11 @@ jobs:
         # 假设这里使用的是标准的 a3700 默认配置（请根据实际板子修改，如 mvebu_espressobin-88f3720_defconfig）
         if [ -f "Makefile" ]; then
           # 尝试查找默认配置，如果没有可以去掉此行直接 make
-          #make defconfig || true 
+          make defconfig || true 
           
           # 执行编译，这里以生成全功能包含 WTMI 的 flash-image.bin 为例
           # 如果你的仓库只是纯 U-Boot，可以直接执行 make -j$(nproc)
-          make PLAT=a3700 DEBUG=0 WTP=./a3700-utils/ allfip || make -j$(nproc)
+          make -j$(nproc)
         fi
 
     - name: Find and Collect Bin Files
